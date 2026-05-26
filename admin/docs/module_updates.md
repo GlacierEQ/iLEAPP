@@ -59,7 +59,6 @@ from scripts.ilapfuncs import artifact_processor, get_file_path
 # After (ensure all needed functions are imported)
 from scripts.ilapfuncs import (
     artifact_processor,
-    get_file_path,
     check_in_media,            # For media files on disk
     check_in_embedded_media,   # For media stored as blobs/binary data
     # ... other necessary ilapfuncs ...
@@ -73,7 +72,7 @@ Add the decorator to the main function:
 
 ```python
 @artifact_processor
-def artifactname(files_found, report_folder, seeker, wrap_text, timezone_offset):
+def artifactname(context):
     # ... function body ...
 ```
 
@@ -82,8 +81,10 @@ def artifactname(files_found, report_folder, seeker, wrap_text, timezone_offset)
 Modify the function to return data instead of generating reports:
 
 ```python
-def artifactname(files_found, report_folder, seeker, wrap_text, timezone_offset):
-    source_path = get_file_path(files_found, "filename")
+def artifactname(context):
+    # if artifact needs to iterate through found files
+    found_files = context.get_files_found()
+    source_path = context.get_source_file_path("filename")
     data_list = []
 
     # ... Get file contents and process data ...
@@ -186,18 +187,13 @@ Both functions will copy/link the media to a central data location in the report
 
     * **For files on disk (`check_in_media`):**
         ```python
-        artifact_info = inspect.stack()[0]
-        
         current_file_path = "**/path/to/image.jpg" # dummy for example
-        media_file_on_disk = get_file_path(files_found, current_file_path) 
+        media_file_on_disk = context.get_source_file_path(current_file_path) 
 
         if media_file_on_disk: 
             media_ref_id = check_in_media(
-                artifact_info=artifact_info,
-                report_folder=report_folder,
-                seeker=seeker,
-                files_found=files_found,
-                file_path=media_file_on_disk
+                file_path=media_file_on_disk,
+                name='if-different-than-name-in-path' # optional
             )
             if media_ref_id:
                 data_list.append((timestamp_column, text_column, media_ref_id))
@@ -205,19 +201,14 @@ Both functions will copy/link the media to a central data location in the report
 
     * **For embedded binary data (`check_in_embedded_media`):**
         ```python
-        artifact_info = inspect.stack()[0]
-        
         original_source_path_of_db = "*/path/to/sqlite.db" # dummy for example
         binary_image_data = db.msg_record.imagedata # dummy for example
 
         if binary_image_data and original_source_path_of_db:
             media_ref_id = check_in_embedded_media(
-                artifact_info=artifact_info,
-                report_folder=report_folder, 
-                seeker=seeker,
                 source_file=original_source_path_of_db,
                 data=binary_image_data,
-                name=db.msg_record.imagename
+                name=db.msg_record.imagename # optional but good idea if name is available
             )
             if media_ref_id:
                 data_list.append((timestamp_column, description_column, media_ref_id))
@@ -328,6 +319,29 @@ The new structure allows for:
 - De-duplication and conflict resolution
 
 You can view the current categories and labels being used across all modules in the [Device Info Values](device_info_values.md) documentation.
+
+### 10. Get device model from device identifier
+The `get_device_model(identifier)` method of the Context class allows you to retrieve the human-readable device model name for a given device identifier (such as "iPhone10,1" or "iPad7,4") in the internal device ID mapping loaded from [data/device_ids.json](../../scripts/data/device_ids.json). This is useful when processing artifacts that include device identifiers and you want to display or use the corresponding model name.
+
+When you are processing data, call the method with a device identifier
+```python
+model_name = Context.get_device_model(record[x])
+```
+- record[x] contains a string representing the device identifier (e.g., "iPhone10,1").
+
+The function returns the model name as a string (e.g., "iPhone 8"). If the identifier is not found, it returns an empty string.
+
+### 11. Get OS version from OS build
+The `get_os_version(build, device_family='')` method of the Context class allows you to retrieve the operating system version string for a given build number in the internal OS builds mapping loaded from [data/os_builds.json](../../scripts/data/os_builds.json), and device family loaded from [data/device_ids.json](../../scripts/data/device_ids.json). This is useful when processing artifacts that include OS build information and you need to display or use the corresponding OS version.
+
+When you are processing data, call the method with a build and an optional device identifier
+```python
+os_version = Context.get_os_version(record[x], record[y])
+```
+- record[x] contains a string representing the OS build number to look up (e.g., "22E240").
+- record[y], which is optional, contains a string representing the device identifier (e.g., "iPhone10,1"). It is better to use it if available in order to avoid having multiple versions of different operating system families with the same build number. If it is not provided, the function will search all OS families and return all matching ones.
+
+The function returns the OS version as a string (e.g., "iOS 18.4"). If any matching build number is found, it returns an empty string.
 
 ## Reasoning
 

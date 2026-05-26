@@ -4,7 +4,7 @@ __artifacts_v2__ = {
         'description': 'Extract information from the native contacts application',
         'author': '@AlexisBrignoni - @JohannPLW',
         'creation_date': '2020-04-30',
-        'last_update_date': '2025-05-13',
+        "last_update_date": "2025-10-03",
         'requirements': 'none',
         'category': 'Contacts',
         'notes': '',
@@ -16,7 +16,7 @@ __artifacts_v2__ = {
 
 
 from scripts.ilapfuncs import artifact_processor, \
-    get_file_path, get_sqlite_db_records, attach_sqlite_db_readonly, check_in_embedded_media, \
+    get_sqlite_db_records, attach_sqlite_db_readonly, check_in_embedded_media, \
     convert_cocoa_core_data_ts_to_utc, get_birthdate
 
 
@@ -36,8 +36,8 @@ def remove_unused_rows(data, count_rows):
 
 @artifact_processor
 def addressBook(context):
-    source_path = get_file_path(context.get_files_found(), 'AddressBook.sqlitedb')
-    address_book_images_db = get_file_path(context.get_files_found(), 'AddressBookImages.sqlitedb')
+    source_path = context.get_source_file_path('AddressBook.sqlitedb')
+    address_book_images_db = context.get_source_file_path('AddressBookImages.sqlitedb')
 
     data_list = []
 
@@ -151,6 +151,7 @@ def addressBook(context):
 
     data_headers = [
         ('Creation Date', 'datetime'),
+        ('Modification Date', 'datetime'),
         ('Thumbnail', 'media', 'height: 80px; border-radius: 50%;'),
         ('Full Size Image', 'media', 'height: 80px;'),
         'Prefix', 
@@ -177,7 +178,7 @@ def addressBook(context):
         'Birthday', 
         'Group Name', 
         'Storage Place', 
-        ('Modification Date', 'datetime')]
+    ]
 
     db_records = get_sqlite_db_records(source_path, query, attach_query)
 
@@ -228,11 +229,11 @@ def addressBook(context):
         modified_date = convert_cocoa_core_data_ts_to_utc(record[-1])
 
         data_list.append(
-            [creation_date, thumbnail, full_size_image, record[4], record[5], record[6],
+            [creation_date, modified_date, thumbnail, full_size_image, record[4], record[5], record[6],
              record[7], record[8], record[9], record[10], record[11], record[12], record[13],
              record[14], record[15], phone_numbers, email_addresses, addresses, instant_message,
              url, related_name, profile, record[23], record[24], birthday, record[26],
-             record[27], modified_date])
+             record[27]])
 
     # Removing unused columns
     remove_empty_cols_query = '''
